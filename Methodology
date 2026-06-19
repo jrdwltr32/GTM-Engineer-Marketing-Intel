@@ -1,0 +1,193 @@
+# Methodology
+
+This project uses public job-posting data, workflow automation, rubric-based classification, and LLM-assisted synthesis to analyze how the market is defining GTM Engineering.
+
+The goal is not to produce a comprehensive labor-market study. The goal is to build a repeatable workflow that can turn noisy public job-posting data into directional market intelligence.
+
+## 1. Data Source
+
+The workflow uses public LinkedIn job postings related to GTM Engineering and adjacent role categories.
+
+An Apify actor handles the job-posting collection process. n8n triggers the actor, receives the scraped job data, and writes the results into Google Sheets.
+
+Google Sheets acts as the lightweight data repository for the MVP. It stores:
+
+* Raw scraped job postings
+* Classification rubric
+* Classified job records
+* Market-intelligence outputs
+* Workflow run metadata
+
+## 2. Workflow Design
+
+The workflow is organized into three connected branches:
+
+```text
+Rubric Generation → Job Collection + Classification → Market Intelligence Analysis
+```
+
+Each branch performs a distinct function.
+
+This separation is intentional. The rubric branch defines classification logic. The classification branch determines which jobs are relevant. The market-intelligence branch analyzes only the filtered set of relevant postings.
+
+## 3. Rubric Generation
+
+The first branch creates a GTM Engineering classification rubric.
+
+I manually selected examples of strong-fit and weak-fit job postings. These examples were used as contrastive data: the model compared what made some jobs strong GTM Engineering matches and others poor or adjacent matches.
+
+An LLM then generated a reusable rubric from those examples.
+
+The rubric was designed to classify roles into categories such as:
+
+* Core GTM Engineer
+* Strong Adjacent - GTM Systems
+* Adjacent - GTM Ops/Strategy
+* Adjacent - Customer-Facing Technical
+* Weak Match
+* Exclude
+
+The purpose of this step was to create a reusable fit model rather than manually judge every scraped job.
+
+## 4. Job Collection
+
+The second branch runs on a schedule.
+
+n8n triggers an Apify actor to collect public LinkedIn job postings related to GTM Engineering. The resulting postings are written into the `LI_Job_Postings` tab in Google Sheets.
+
+Each job record includes fields such as:
+
+* Job title
+* Company name
+* Location
+* Job description
+* Years of experience, when available
+* Source metadata
+* Classification fields added later in the workflow
+
+## 5. Job Classification
+
+After jobs are collected, an LLM applies the active rubric to each posting.
+
+This step assigns each job a market-fit category and a brief classification reason.
+
+The classifier is deliberately constrained. Its job is not to analyze the market. Its job is only to determine whether a job should be included in the GTM Engineering market-intelligence sample.
+
+This matters because “GTM Engineer” is a noisy market term. Some postings are strong examples of the category. Others are closer to RevOps, Sales Ops, Growth, Solutions Engineering, Demo Engineering, Forward-Deployed Engineering, or generic automation roles.
+
+The classification step acts as a filter.
+
+## 6. Market Analysis Sample
+
+Only in-scope jobs are passed into the market-intelligence branch.
+
+The market-analysis branch typically uses jobs where the classification output indicates that the posting should be included in the market-intelligence sample.
+
+This keeps the final analysis focused on relevant postings rather than the full scrape.
+
+## 7. Job Description Trimming
+
+The job description is the most valuable field for market analysis because it contains the actual responsibilities, requirements, tools, systems, workflows, and business outcomes associated with the role.
+
+It is also the largest field.
+
+The first version of the market-analysis step exceeded model context limits because full job descriptions were too long. To solve this, the workflow includes a preprocessing step that trims job descriptions before analysis.
+
+The trimming logic is designed to preserve role-relevant sections such as:
+
+* Responsibilities
+* Requirements
+* Qualifications
+* Tools and systems
+* Workflow ownership
+* Technical skills
+* Experience expectations
+* Business outcomes
+
+It reduces lower-signal sections such as:
+
+* About the company
+* Why join us
+* Benefits
+* Culture language
+* Legal boilerplate
+* Equal opportunity language
+
+This step keeps the market-analysis input large enough to preserve useful signal, but small enough to process reliably.
+
+## 8. Market Intelligence Analysis
+
+The final branch sends the filtered and trimmed sample of jobs to an LLM for market-intelligence synthesis.
+
+The prompt is designed to let the market data drive the output rather than force the analysis into predefined assumptions.
+
+The analysis looks for patterns across:
+
+* Role archetypes
+* Common responsibilities
+* Tools, systems, and technical signals
+* Business outcomes
+* Experience and background patterns
+* Company and market patterns
+* Areas of ambiguity
+* Open questions and limitations
+
+The output is stored in the `Market_Intel_Runs` tab in Google Sheets as a markdown report.
+
+## 9. Data Structure
+
+The workflow uses Google Sheets as a simple system of record.
+
+The data is separated by process stage:
+
+* `LI_Job_Postings` stores raw and classified jobs
+* `GTME_Rubric` stores the active rubric
+* `Market_Intel_Runs` stores generated market reports
+* `Run_Log` can store workflow execution metadata
+
+This structure keeps the workflow inspectable and easier to troubleshoot. It also avoids mixing raw data, classification logic, and final analysis into one unstructured output.
+
+## 10. Known Limitations
+
+This project should be interpreted as directional market intelligence, not a comprehensive or statistically representative study.
+
+Known limitations include:
+
+* The dataset is based on a limited sample of public LinkedIn postings.
+* The search strategy may miss relevant jobs that do not use GTM Engineering language.
+* Some postings using GTM Engineering language may still be adjacent or weak fits.
+* The initial rubric depends on manually selected examples.
+* Job descriptions were trimmed to manage context size, so some information may have been excluded.
+* Compensation data is incomplete and not fully analyzed in this version.
+* The workflow does not yet include robust deduplication across recurring scrapes.
+* The output reflects a snapshot in time rather than a longitudinal trend.
+
+## 11. Future Improvements
+
+Potential improvements include:
+
+* Better deduplication across job scrapes
+* Salary and OTE extraction
+* Tool-frequency counting
+* Company-stage segmentation
+* Weekly market-intelligence snapshots
+* More structured run logging
+* Larger labeled training sets for the classifier
+* Better comparison against adjacent roles such as RevOps, Sales Ops, Growth, and Solutions Engineering
+* A dashboard or recurring report layer
+* A more production-ready database instead of Google Sheets
+
+## 12. Summary
+
+This workflow demonstrates how public job-posting data can be collected, classified, filtered, prepared, and analyzed to understand an emerging role category.
+
+The core idea is simple:
+
+```text
+Use automation to collect noisy market data.
+Use classification to identify relevant records.
+Use preprocessing to prepare the data.
+Use LLM analysis to synthesize market patterns.
+```
+
+For this project, the target category is GTM Engineering. The same approach could be adapted to other emerging roles, markets, or skill categories.
