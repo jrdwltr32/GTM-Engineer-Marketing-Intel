@@ -1,0 +1,1438 @@
+{
+  "name": "GTME Market Intel",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 6
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -512,
+        128
+      ],
+      "id": "95a436c3-582d-46f4-a7ec-7e5b3f2a8e7b",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_URL",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 727610465,
+          "mode": "list",
+          "cachedResultName": "GTME Marketing Intel _ full dataset",
+          "cachedResultUrl": "YOUR_GOOGLE_SHEET_URL"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "analysisGroup",
+              "lookupValue": "BOB"
+            },
+            {
+              "lookupColumn": "analysisGroup",
+              "lookupValue": "WOW"
+            }
+          ]
+        },
+        "combineFilters": "OR",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -496,
+        -272
+      ],
+      "id": "ede68cd3-1e02-4f7b-bf4b-7d85ce609a5b",
+      "name": "Get row(s) in sheet"
+    },
+    {
+      "parameters": {
+        "instructions": "Create a single JSON object with two arrays:\n\nbobJobs\nwowJobs\n\nGroup rows based on analysisGroup.\n\nFor each job include:\n\njobId\njobTitle\ncompanyName\nlocation\nsector\nexperienceLevel\nworkType\njobDescription\n\nReturn one JSON object only.\n\nDo not summarize.\nDo not analyze.\nDo not add commentary.\nOnly return the structured JSON object.",
+        "codeGeneratedForPrompt": "Create a single JSON object with two arrays:\n\nbobJobs\nwowJobs\n\nGroup rows based on analysisGroup.\n\nFor each job include:\n\njobId\njobTitle\ncompanyName\nlocation\nsector\nexperienceLevel\nworkType\njobDescription\n\nReturn one JSON object only.\n\nDo not summarize.\nDo not analyze.\nDo not add commentary.\nOnly return the structured JSON object.",
+        "jsCode": "const items = $input.all();\nconst bobJobs = [];\nconst wowJobs = [];\n\nitems.forEach((item) => {\n  const job = {\n    jobId: item.json.jobId,\n    jobTitle: item.json.jobTitle,\n    companyName: item.json.companyName,\n    location: item.json.location,\n    sector: item.json.sector,\n    experienceLevel: item.json.experienceLevel,\n    workType: item.json.workType,\n    jobDescription: item.json.jobDescription,\n  };\n\n  if (item.json.analysisGroup === \"BOB\") {\n    bobJobs.push(job);\n  } else if (item.json.analysisGroup === \"WOW\") {\n    wowJobs.push(job);\n  }\n});\n\nreturn [\n  { json: { bobJobs, wowJobs }, pairedItem: items.map((_, index) => index) },\n];\n"
+      },
+      "type": "n8n-nodes-base.aiTransform",
+      "typeVersion": 1,
+      "position": [
+        -288,
+        -272
+      ],
+      "id": "39703a16-558f-4eec-a9d8-48520cbbe092",
+      "name": "AI Transform"
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -96
+      ],
+      "id": "063e756e-b524-4a73-aa99-800f85292da3",
+      "name": "OpenRouter Chat Model"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        288,
+        304
+      ],
+      "id": "09874172-f510-428d-85f0-fb484367ac21",
+      "name": "OpenRouter Chat Model1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are classifying one scraped LinkedIn job using the latest GTME rubric.\n\nUse only:\n1. the rubric below\n2. the job posting below\n\nDo not invent facts.\nEvidence quotes must be exact phrases from the jobDescription.\nReturn valid JSON only.\n\nLATEST GTME RUBRIC:{{ $('Get GTME rubric').first().json.rubricJson }}\n\nJOB TO CLASSIFY:\n{\n  \"jobId\": \"{{ $json.jobId }}\",\n  \"jobTitle\": \"{{ $json.jobTitle }}\",\n  \"companyName\": \"{{ $json.companyName }}\",\n  \"location\": \"{{ $json.location }}\",\n  \"sector\": \"{{ $json.sector }}\",\n  \"workType\": \"{{ $json.workType }}\",\n  \"salaryInfo\": {{ JSON.stringify($json.salaryInfo || []) }},\n  \"jobDescription\": {{ JSON.stringify($json.jobDescription || \"\") }}\n}\n\nReturn this exact JSON structure:\n{\n  \"jobId\": \"\",\n  \"jobTitle\": \"\",\n  \"companyName\": \"\",\n  \"marketFitBucket\": \"\",\n  \"marketFitScore\": 0,\n  \"classificationConfidence\": \"High | Medium | Low\",\n  \"isGTMERelevant\": true,\n  \"recommendedUse\": \"include_market_intel | review_manually | exclude\",\n  \"classificationReason\": \"\",\n  \"positiveSignals\": [],\n  \"negativeSignals\": [],\n  \"evidenceQuotes\": []\n}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        288,
+        128
+      ],
+      "id": "ac21b7c8-8547-4459-9018-ae1609fb1976",
+      "name": "Classify fresh batch of LI Jobs"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=DATA TO ANALYZE\n\nbobJobs:\n{{ JSON.stringify($json.bobJobs, null, 2) }}\n\nwowJobs:\n{{ JSON.stringify($json.wowJobs, null, 2) }}\n\nINSTRUCTIONS\n\nYou are analyzing a labor market dataset for GTM Engineering roles.\n\nThe input is bobJobs, which represent some of the \"best of the best\" matches to what we think a GTM Engineer job is in the current market.  The wowJobs are the \"worst of the worst\" matches.  \n\nYour task is to compare BoB jobs against WoW jobs and identify the signals that distinguish true GTM Engineering roles from false positives.\n\nUse only the provided data. Do not invent facts.\n\nAnalyze the following dimensions:\n\n1. Positive GTM Engineer signals\n- Common title patterns\n- Common responsibilities\n- Common tools/platforms\n- Common business outcomes\n- Common operating context\n\n2. Negative / false-positive signals\n- Title patterns that indicate poor fit\n- Responsibilities that indicate poor fit\n- Tools/platforms that indicate poor fit\n- Industries or operating contexts that indicate poor fit\n\n3. Ambiguous signals\n- Terms that appear in both groups or may require caution\n- Roles that could be adjacent but not necessarily GTM Engineering\n\n4. Draft classification logic\nCreate practical rules that could be used later to score new job postings.\n\n\n\nImportant constraints:\n- Do not invent percentages.\n- Do not estimate frequencies unless you explicitly count the rows.\n- Every signal must include at least 2 supporting examples from the provided jobs when available.\n- Use the actual language from the postings.\n- Do not assume GTM Engineer means software/platform engineer.\n- Treat sales, marketing, and revenue language as relevant only when paired with systems, automation, data, workflow, AI, or operational ownership.\n- Distinguish technical product engineering from GTM systems engineering.\n\nReturn:\n1. a short summary\n2. some criteria to use to evaluate new jobs if they are a Core GTM Engineer, Strong Adjacent - GTM Systems, Adjacent - GTM Ops/Strategy, Adjacent - Customer-Facing Technical, Emerging / Slight Stretch, Weak Match, or Exclude\n3. some tools, systems, responsibilities, etc. that are specific to the GTM engineer roles.\n\n\n\n",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -80,
+        -272
+      ],
+      "id": "1fe356a1-4a08-4084-93d7-8432fb99d2c7",
+      "name": "Learn what is a GTME job"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-20b:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        272,
+        -96
+      ],
+      "id": "f0dc4d67-cfcb-43b7-bcdb-a81055c2f917",
+      "name": "OpenRouter Chat Model2"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_URL",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2139325998,
+          "mode": "list",
+          "cachedResultName": "GTME job posting classification rubric",
+          "cachedResultUrl": "YOUR_GOOGLE_SHEET_URL"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "rubricId": "={{ \"GTME-\" + $now.toISO() }}",
+            "rubricVersion": "={{ JSON.parse($json.text).rubricVersion || \"v1\" }}",
+            "generatedAt": "={{ $now.toISO() }}",
+            "modelUsed": "openai/gpt-oss-120b:free",
+            "rubricJson": "={{ $json.text }}",
+            "rubricSummary": "={{ JSON.parse($json.text).coreDefinition }}",
+            "isActive": "True"
+          },
+          "matchingColumns": [
+            "rubricId"
+          ],
+          "schema": [
+            {
+              "id": "rubricId",
+              "displayName": "rubricId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "rubricVersion",
+              "displayName": "rubricVersion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "generatedAt",
+              "displayName": "generatedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "modelUsed",
+              "displayName": "modelUsed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "rubricJson",
+              "displayName": "rubricJson",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "rubricSummary",
+              "displayName": "rubricSummary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "isActive",
+              "displayName": "isActive",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        624,
+        -272
+      ],
+      "id": "8607bdf9-0227-4068-9f61-0c1b70741241",
+      "name": "Append or update row in sheet"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_URL",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 247309782,
+          "mode": "list",
+          "cachedResultName": "GTME Market _ LI Job postings",
+          "cachedResultUrl": "YOUR_GOOGLE_SHEET_URL"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "marketFitBucket": "={{ $json.marketFitBucket }}",
+            "marketFitScore": "={{ $json.marketFitScore }}",
+            "classificationConfidence": "={{ $json.classificationConfidence }}",
+            "isGTMERelevant": "={{ $json.isGTMERelevant }}",
+            "recommendedUse\n": "={{ $json.recommendedUse }}",
+            "classificationReason\n": "={{ $json.classificationReason }}",
+            "positiveSignals": "={{ JSON.stringify($json.positiveSignals || []) }}",
+            "negativeSignals": "={{ JSON.stringify($json.negativeSignals || []) }}",
+            "evidenceQuotes": "={{ JSON.stringify($json.evidenceQuotes || []) }}",
+            "classifiedAt": "={{ $json.classifiedAt }}",
+            "modelUsed": "={{ $json.modelUsed }}",
+            "classificationJson": "={{ $json.classificationJson }}",
+            "jobId": "={{ $json.jobId }}"
+          },
+          "matchingColumns": [
+            "jobId"
+          ],
+          "schema": [
+            {
+              "id": "jobId",
+              "displayName": "jobId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "jobTitle",
+              "displayName": "jobTitle",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "location",
+              "displayName": "location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "salaryInfo",
+              "displayName": "salaryInfo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "postedTime",
+              "displayName": "postedTime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "publishedAt",
+              "displayName": "publishedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "searchString",
+              "displayName": "searchString",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "jobUrl",
+              "displayName": "jobUrl",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "companyName",
+              "displayName": "companyName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "companyUrl",
+              "displayName": "companyUrl",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "companyLogo",
+              "displayName": "companyLogo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "jobDescription",
+              "displayName": "jobDescription",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "applicationsCount",
+              "displayName": "applicationsCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "contractType",
+              "displayName": "contractType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "experienceLevel",
+              "displayName": "experienceLevel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "yearsOfExperience",
+              "displayName": "yearsOfExperience",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "workType",
+              "displayName": "workType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sector",
+              "displayName": "sector",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "posterFullName",
+              "displayName": "posterFullName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "posterProfileUrl",
+              "displayName": "posterProfileUrl",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "companyId",
+              "displayName": "companyId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "applyUrl",
+              "displayName": "applyUrl",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "applyType",
+              "displayName": "applyType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "marketFitBucket",
+              "displayName": "marketFitBucket",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "marketFitScore",
+              "displayName": "marketFitScore",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "classificationConfidence",
+              "displayName": "classificationConfidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "isGTMERelevant",
+              "displayName": "isGTMERelevant",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "recommendedUse\n",
+              "displayName": "recommendedUse\n",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "classificationReason\n",
+              "displayName": "classificationReason\n",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "positiveSignals",
+              "displayName": "positiveSignals",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "negativeSignals",
+              "displayName": "negativeSignals",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "evidenceQuotes",
+              "displayName": "evidenceQuotes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "classifiedAt",
+              "displayName": "classifiedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "modelUsed",
+              "displayName": "modelUsed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "classificationJson",
+              "displayName": "classificationJson",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        848,
+        128
+      ],
+      "id": "520cd30e-e8fc-4a38-9aa8-28e0bb5f6c0f",
+      "name": "Update LI job classification"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map((item, index) => {\n  let raw = item.json.text;\n\n  if (!raw) {\n    throw new Error(`Item ${index}: No text field found from LLM output.`);\n  }\n\n  raw = String(raw).trim();\n\n  // Remove markdown fences if present\n  raw = raw\n    .replace(/^```json\\s*/i, \"\")\n    .replace(/^```\\s*/i, \"\")\n    .replace(/```$/i, \"\")\n    .trim();\n\n  // If the model added text around the JSON, keep only the JSON object\n  const firstBrace = raw.indexOf(\"{\");\n  const lastBrace = raw.lastIndexOf(\"}\");\n\n  if (firstBrace === -1 || lastBrace === -1) {\n    throw new Error(`Item ${index}: Could not find JSON object in LLM output.`);\n  }\n\n  raw = raw.slice(firstBrace, lastBrace + 1);\n\n  // Repair common LLM JSON mistakes:\n  // 1. Invalid escaped apostrophes: don\\'t -> don't\n  // 2. Invalid escaped underscores/slashes in normal text\n  raw = raw\n    .replace(/\\\\'/g, \"'\")\n    .replace(/\\\\_/g, \"_\");\n\n  let parsed;\n\n  try {\n    parsed = JSON.parse(raw);\n  } catch (error) {\n    throw new Error(\n      `Item ${index}: JSON parse failed. ${error.message}\\n\\nRaw output:\\n${raw}`\n    );\n  }\n\n  return {\n    json: {\n      ...item.json,\n      ...parsed,\n      classificationJson: raw,\n      classifiedAt: new Date().toISOString(),\n      modelUsed: \"openai/gpt-oss-120b:free\"\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        128
+      ],
+      "id": "f747b84e-9830-4f2e-ae93-9be4b208ac38",
+      "name": "Parse GTME Classification"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_URL",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 247309782,
+          "mode": "list",
+          "cachedResultName": "GTME Market _ LI Job postings",
+          "cachedResultUrl": "YOUR_GOOGLE_SHEET_URL"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "jobId": "={{ $json.jobId }}",
+            "jobTitle": "={{ $json.jobTitle }}",
+            "location": "={{ $json.location }}",
+            "salaryInfo": "={{ $json.salaryInfo }}",
+            "postedTime": "={{ $json.postedTime }}",
+            "searchString": "={{ $json.searchString }}",
+            "publishedAt": "={{ $json.publishedAt }}",
+            "jobUrl": "={{ $json.jobUrl }}",
+            "companyName": "={{ $json.companyName }}",
+            "companyUrl": "={{ $json.companyUrl }}",
+            "jobDescription": "={{ $json.jobDescription }}",
+            "applicationsCount": "={{ $json.applicationsCount }}",
+            "contractType": "={{ $json.contractType }}",
+            "experienceLevel": "={{ $json.experienceLevel }}",
+            "yearsOfExperience": "={{ $json.yearsOfExperience }}",
+            "workType": "={{ $json.workType }}",
+            "sector": "={{ $json.sector }}",
+            "companyId": "={{ $json.companyId }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "jobId",
+              "displayName": "jobId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "jobTitle",
+              "displayName": "jobTitle",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "location",
+              "displayName": "location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "salaryInfo",
+              "displayName": "salaryInfo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "postedTime",
+              "displayName": "postedTime",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "publishedAt",
+              "displayName": "publishedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "searchString",
+              "displayName": "searchString",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "jobUrl",
+              "displayName": "jobUrl",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "companyName",
+              "displayName": "companyName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "companyUrl",
+              "displayName": "companyUrl",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "companyLogo",
+              "displayName": "companyLogo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "jobDescription",
+              "displayName": "jobDescription",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "applicationsCount",
+              "displayName": "applicationsCount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "contractType",
+              "displayName": "contractType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "experienceLevel",
+              "displayName": "experienceLevel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "yearsOfExperience",
+              "displayName": "yearsOfExperience",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "workType",
+              "displayName": "workType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "sector",
+              "displayName": "sector",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "posterFullName",
+              "displayName": "posterFullName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "posterProfileUrl",
+              "displayName": "posterProfileUrl",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "companyId",
+              "displayName": "companyId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "applyUrl",
+              "displayName": "applyUrl",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "applyType",
+              "displayName": "applyType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        80,
+        128
+      ],
+      "id": "0eaf4fce-f7dc-46d5-b0b7-e2a3fed747b6",
+      "name": "Add new jobs"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/cheap_scraper~linkedin-job-scraper/run-sync-get-dataset-items",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_APIFY_API_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"enrichCompanyData\": false,\n  \"keyword\": [\n    \"\\\"GTM Engineer\\\"\"\n  ],\n  \"maxItems\": 150,\n  \"publishedAt\": \"r604800\",\n  \"saveOnlyUniqueItems\": true,\n  \"distance\": \"\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -112,
+        128
+      ],
+      "id": "044650ac-5760-4b83-aae7-8c6845736c0a",
+      "name": "Ask LI Job scraper to run"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_URL",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2139325998,
+          "mode": "list",
+          "cachedResultName": "GTME job posting classification rubric",
+          "cachedResultUrl": "YOUR_GOOGLE_SHEET_URL"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "isActive",
+              "lookupValue": "true"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": true
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -304,
+        128
+      ],
+      "id": "703cfc3f-3e2d-4f0d-9313-e9e5f6471ba8",
+      "name": "Get GTME rubric"
+    },
+    {
+      "parameters": {
+        "jsCode": "function extractRelevantDescription(text) {\n  if (!text) return \"\";\n\n  const raw = String(text)\n    .replace(/\\\\n/g, \"\\n\")\n    .replace(/\\r/g, \"\\n\")\n    .replace(/\\n{3,}/g, \"\\n\\n\")\n    .trim();\n\n  const lines = raw.split(\"\\n\").map(l => l.trim()).filter(Boolean);\n\n  const includeMarkers = [\n    \"about the role\",\n    \"the role\",\n    \"what you'll do\",\n    \"what you’ll do\",\n    \"what you will do\",\n    \"responsibilities\",\n    \"key responsibilities\",\n    \"requirements\",\n    \"qualifications\",\n    \"what you bring\",\n    \"what you'll bring\",\n    \"what you’ll bring\",\n    \"must-have\",\n    \"must haves\",\n    \"nice-to-have\",\n    \"nice to have\",\n    \"skills\",\n    \"experience\",\n    \"what success looks like\",\n    \"problems you'll solve\",\n    \"problems you’ll solve\",\n    \"mission\"\n  ];\n\n  const stopMarkers = [\n    \"benefits\",\n    \"perks\",\n    \"what we offer\",\n    \"compensation\",\n    \"salary\",\n    \"equal opportunity\",\n    \"privacy\",\n    \"our values\",\n    \"who we are\",\n    \"about us\",\n    \"company description\",\n    \"show more\",\n    \"show less\"\n  ];\n\n  const lowerLines = lines.map(l => l.toLowerCase());\n\n  // Find the first role-relevant section marker.\n  let startIndex = lowerLines.findIndex(line =>\n    includeMarkers.some(marker => line.includes(marker))\n  );\n\n  // If no marker is found, start after the first ~20% of the text to skip company boilerplate.\n  if (startIndex === -1) {\n    startIndex = Math.min(Math.floor(lines.length * 0.2), 20);\n  }\n\n  let selected = [];\n\n  for (let i = startIndex; i < lines.length; i++) {\n    const lower = lowerLines[i];\n\n    // Stop only after we have captured enough useful content.\n    if (\n      selected.length > 20 &&\n      stopMarkers.some(marker => lower.includes(marker))\n    ) {\n      break;\n    }\n\n    selected.push(lines[i]);\n  }\n\n  let output = selected.join(\"\\n\");\n\n  // Hard cap to keep the market-intel prompt manageable.\n  // 2500 chars/job * 74 jobs = ~185k chars before JSON overhead.\n  // You may need to lower this to 1500–2000 if the model still errors.\n  return output.slice(0, 2200);\n}\n\nconst jobs = items.map(item => ({\n  jobTitle: item.json.jobTitle,\n  companyName: item.json.companyName,\n  location: item.json.location,\n  yearsOfExperience: item.json.yearsOfExperience || \"\",\n  marketFitBucket: item.json.marketFitBucket,\n  classificationReason: item.json.classificationReason,\n  trimmedJobDescription: extractRelevantDescription(item.json.jobDescription)\n}));\n\nreturn [\n  {\n    json: {\n      relevantJobCount: jobs.length,\n      jobs\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        448
+      ],
+      "id": "2fcea35e-1ddc-44df-b35e-13164ecd00c2",
+      "name": "Aggregate GTME-relevant jobs"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_URL",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 247309782,
+          "mode": "list",
+          "cachedResultName": "GTME Market _ LI Job postings",
+          "cachedResultUrl": "YOUR_GOOGLE_SHEET_URL"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "recommendedUse\n",
+              "lookupValue": "include_market_intel"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        848,
+        448
+      ],
+      "id": "82ef21cb-4756-4279-8d26-6f03448e104c",
+      "name": "Get only GTME-relevant jobs"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        608
+      ],
+      "id": "5f638494-205a-4018-806b-161714837268",
+      "name": "OpenRouter Chat Model3"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are analyzing a sample of classified LinkedIn job postings related to GTM Engineering.\n\nThe input contains jobs that passed a relevance classifier. The classifier was used only to filter the sample. Your task is to analyze the market patterns from the provided job data.\n\nUse only the provided jobs. Do not invent facts.\n\nImportant context:\n\n* Each job includes a trimmed job description intended to preserve role-relevant sections such as responsibilities, requirements, tools, systems, workflows, and qualifications.\n* The classification fields are helpful context, but they are not the source of truth.\n* Prioritize the jobTitle, companyName, location, yearsOfExperience, marketFitBucket, classificationReason, and trimmedJobDescription.\n* Let the market data tell you what matters. Do not force the analysis into pre-defined tool categories or assumptions.\n* Do not include percentages unless they are directly counted from the provided rows.\nPrefer “frequent,” “recurring,” “less common,” or “minority pattern” when exact counts are not calculated.\n* Only list a tool, platform, language, or system if it appears explicitly in the provided job fields. Do not include implied tools.\n* Do not include career advice, hiring advice, stakeholder recommendations, or personal positioning. End with “Open Questions and Data Limitations.”\n* Separate strong recurring signals from weak, ambiguous, or noisy signals.\n* Treat GTM Engineering as an emerging and potentially fragmented role category.\n* When possible, cite example companies or job titles for each pattern, but do not overfit to a single company.\n\nProduce a market intelligence report with these sections:\n\n1. Executive Summary\n\n* What does this sample suggest GTM Engineering means in the current market?\n* Is the role category coherent, fragmented, emerging, or noisy?\n\n2. Role Archetypes\n\n* What major archetypes appear in the sample?\n* For each archetype, describe common titles, responsibilities, tools/systems, business outcomes, and representative companies.\n\n3. Common Responsibilities\n\n* What work do these roles actually own?\n* Which responsibilities appear central versus peripheral?\n* Where do roles differ meaningfully from each other?\n\n4. Tools, Systems, and Technical Signals\n\n* What tools, platforms, systems, languages, or technical capabilities appear repeatedly?\n* Which seem central to the role category?\n* Which seem role-specific, company-specific, or merely adjacent?\n\n5. Business Outcomes\n\n* What business outcomes are these roles expected to influence?\n* Look for themes such as pipeline, conversion, sales productivity, attribution, customer lifecycle, expansion, churn, workflow efficiency, data quality, or AI adoption.\n\n6. Experience and Background Patterns\n\n* What experience levels, prior functions, or backgrounds appear most common?\n* Note patterns across RevOps, Sales Ops, Marketing Ops, Growth, Product, Data, Engineering, or other functions.\n\n7. Company and Market Patterns\n\n* What kinds of companies appear to be hiring for these roles?\n* Note patterns in company type, stage, sector, location, remote/hybrid expectations, or market context when visible.\n\n8. Market Definition\n\n* Based on the postings, propose a neutral working definition of “GTM Engineering.”\n* Also explain where the definition remains ambiguous or contested.\n\n9. Open Questions and Data Limitations\n\n* What can this sample not tell us?\n* What additional data would improve confidence?\n\nReturn the analysis in clear markdown with headings and bullets.\n\nCLASSIFIED GTME-RELEVANT JOBS:\n{{ JSON.stringify($json.jobs, null, 2) }}\n",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1264,
+        448
+      ],
+      "id": "ef3a9c7d-5443-4fb5-a053-818f313baeae",
+      "name": "Derive intel from matched jobs"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_URL",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1819129210,
+          "mode": "list",
+          "cachedResultName": "GTME Market Intel _ report",
+          "cachedResultUrl": "YOUR_GOOGLE_SHEET_URL"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "analysisId:": "={{ \"GTME-MI-\" + $now.toFormat(\"yyyyLLdd-HHmmss\") }}",
+            "analysisDate:": "={{ $now.toISO() }}",
+            "inputJobCount:": "={{ $('Aggregate GTME-relevant jobs').item.json.relevantJobCount }}",
+            "reportTitle:": "GTM Engineering Market Intelligence Report",
+            "fullReportMarkdown:": "={{ $json.text }}",
+            "executiveSummary:": "={{\n  (() => {\n    const text = $json.text || \"\";\n    const startMatch = text.match(/##+\\s*1\\.?\\s*Executive Summary/i);\n    const startIndex = startMatch ? startMatch.index : 0;\n\n    return text\n      .slice(startIndex)\n      .split(/##+\\s*2\\.?\\s*Role Archetypes/i)[0]\n      .trim();\n  })()\n}}"
+          },
+          "matchingColumns": [
+            "analysisId:"
+          ],
+          "schema": [
+            {
+              "id": "analysisId:",
+              "displayName": "analysisId:",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "analysisDate:",
+              "displayName": "analysisDate:",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "inputJobCount:",
+              "displayName": "inputJobCount:",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "includedBuckets:",
+              "displayName": "includedBuckets:",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "modelUsed:",
+              "displayName": "modelUsed:",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "promptVersion:",
+              "displayName": "promptVersion:",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "reportTitle:",
+              "displayName": "reportTitle:",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "executiveSummary:",
+              "displayName": "executiveSummary:",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "fullReportMarkdown:",
+              "displayName": "fullReportMarkdown:",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1616,
+        448
+      ],
+      "id": "335e4b69-e5ba-4bfa-8f00-b883ee58636c",
+      "name": "Append or update row in sheet1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are converting a BoB vs WoW GTM Engineer labor-market analysis into an actionable classifier rubric.\n\nThe rubric will be used by another LLM node to classify one LinkedIn job posting at a time.\n\nUse only the analysis provided below. Do not invent new categories, tools, or rules.\n\nCreate a compact rubric that includes:\n1. Core definition of a GTM Engineer\n2. Bucket definitions\n3. Positive classification signals\n4. Negative / false-positive signals\n5. Ambiguous signals and how to resolve them\n6. Scoring rules\n7. Output schema for the classifier\n\nReturn valid JSON only. Do not include markdown.\n\nBoB vs WoW Analysis:\n{{ $json.text }}\n\nReturn this exact JSON structure:\n\n{\n  \"rubricName\": \"GTME Market Fit Classifier\",\n  \"rubricVersion\": \"v1\",\n  \"coreDefinition\": \"\",\n  \"falsePositiveDefinition\": \"\",\n  \"buckets\": [\n    {\n      \"bucket\": \"Core GTM Engineer\",\n      \"definition\": \"\",\n      \"includeWhen\": [],\n      \"excludeWhen\": []\n    },\n    {\n      \"bucket\": \"Strong Adjacent - GTM Systems\",\n      \"definition\": \"\",\n      \"includeWhen\": [],\n      \"excludeWhen\": []\n    },\n    {\n      \"bucket\": \"Adjacent - GTM Ops/Strategy\",\n      \"definition\": \"\",\n      \"includeWhen\": [],\n      \"excludeWhen\": []\n    },\n    {\n      \"bucket\": \"Adjacent - Customer-Facing Technical\",\n      \"definition\": \"\",\n      \"includeWhen\": [],\n      \"excludeWhen\": []\n    },\n    {\n      \"bucket\": \"Emerging / Slight Stretch\",\n      \"definition\": \"\",\n      \"includeWhen\": [],\n      \"excludeWhen\": []\n    },\n    {\n      \"bucket\": \"Weak Match\",\n      \"definition\": \"\",\n      \"includeWhen\": [],\n      \"excludeWhen\": []\n    },\n    {\n      \"bucket\": \"Exclude\",\n      \"definition\": \"\",\n      \"includeWhen\": [],\n      \"excludeWhen\": []\n    }\n  ],\n  \"positiveSignals\": {\n    \"titleSignals\": [],\n    \"responsibilitySignals\": [],\n    \"toolSignals\": [],\n    \"businessOutcomeSignals\": [],\n    \"operatingContextSignals\": []\n  },\n  \"negativeSignals\": {\n    \"titleSignals\": [],\n    \"responsibilitySignals\": [],\n    \"toolSignals\": [],\n    \"operatingContextSignals\": []\n  },\n  \"ambiguousSignals\": [\n    {\n      \"signal\": \"\",\n      \"positiveInterpretation\": \"\",\n      \"negativeInterpretation\": \"\",\n      \"resolutionRule\": \"\"\n    }\n  ],\n  \"scoringRules\": {\n    \"positiveRules\": [],\n    \"negativeRules\": [],\n    \"thresholds\": []\n  },\n  \"classifierOutputSchema\": {\n    \"jobId\": \"\",\n    \"jobTitle\": \"\",\n    \"companyName\": \"\",\n    \"marketFitBucket\": \"\",\n    \"marketFitScore\": 0,\n    \"classificationConfidence\": \"High | Medium | Low\",\n    \"isGTMERelevant\": true,\n    \"recommendedUse\": \"include_market_intel | review_manually | exclude\",\n    \"classificationReason\": \"\",\n    \"positiveSignals\": [],\n    \"negativeSignals\": [],\n    \"evidenceQuotes\": []\n  }\n}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        272,
+        -272
+      ],
+      "id": "f2206c5e-664b-4ef5-a67b-bb8e6ad485c0",
+      "name": "Create Classification Rubric"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get GTME rubric",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "AI Transform",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Transform": {
+      "main": [
+        [
+          {
+            "node": "Learn what is a GTME job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Learn what is a GTME job",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Classify fresh batch of LI Jobs",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Learn what is a GTME job": {
+      "main": [
+        [
+          {
+            "node": "Create Classification Rubric",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Create Classification Rubric",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify fresh batch of LI Jobs": {
+      "main": [
+        [
+          {
+            "node": "Parse GTME Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse GTME Classification": {
+      "main": [
+        [
+          {
+            "node": "Update LI job classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add new jobs": {
+      "main": [
+        [
+          {
+            "node": "Classify fresh batch of LI Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask LI Job scraper to run": {
+      "main": [
+        [
+          {
+            "node": "Add new jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get GTME rubric": {
+      "main": [
+        [
+          {
+            "node": "Ask LI Job scraper to run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get only GTME-relevant jobs": {
+      "main": [
+        [
+          {
+            "node": "Aggregate GTME-relevant jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate GTME-relevant jobs": {
+      "main": [
+        [
+          {
+            "node": "Derive intel from matched jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Derive intel from matched jobs",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Derive intel from matched jobs": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Classification Rubric": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "nodeGroups": [],
+  "tags": []
+}
