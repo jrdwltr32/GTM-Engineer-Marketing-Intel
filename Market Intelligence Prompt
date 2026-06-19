@@ -1,0 +1,116 @@
+## Purpose
+
+This prompt analyzes the filtered set of GTM Engineering-relevant job postings and produces a market-intelligence report.
+
+The goal of this step is to identify patterns across the in-scope market sample, including role archetypes, common responsibilities, tools and systems, technical signals, business outcomes, company patterns, and areas of ambiguity.
+
+This prompt is separate from the classification step. The classifier determines which jobs are relevant. The market-intelligence prompt analyzes only the relevant jobs.
+
+## Input
+
+The prompt receives one aggregated dataset containing GTM Engineering-relevant jobs.
+
+Each job includes:
+
+- `jobTitle`
+- `companyName`
+- `location`
+- `yearsOfExperience`
+- `marketFitBucket`
+- `classificationReason`
+- `trimmedJobDescription`
+
+The `trimmedJobDescription` field is created by a preprocessing step that attempts to preserve role-relevant sections of the job posting while removing lower-signal content such as company boilerplate, benefits language, culture language, and legal text.
+
+## Output
+
+The prompt returns a markdown market-intelligence report.
+
+Expected report sections:
+
+1. Executive Summary
+2. Role Archetypes
+3. Common Responsibilities
+4. Tools, Systems, and Technical Signals
+5. Business Outcomes
+6. Experience and Background Patterns
+7. Company and Market Patterns
+8. Market Definition
+9. Open Questions and Data Limitations
+
+The output is stored in the `Market_Intel_Runs` sheet as a reusable market-intelligence snapshot.
+
+## Prompt
+You are analyzing a sample of classified LinkedIn job postings related to GTM Engineering.
+
+The input contains jobs that passed a relevance classifier. The classifier was used only to filter the sample. Your task is to analyze the market patterns from the provided job data.
+
+Use only the provided jobs. Do not invent facts.
+
+Important context:
+
+* Each job includes a trimmed job description intended to preserve role-relevant sections such as responsibilities, requirements, tools, systems, workflows, and qualifications.
+* The classification fields are helpful context, but they are not the source of truth.
+* Prioritize the jobTitle, companyName, location, yearsOfExperience, marketFitBucket, classificationReason, and trimmedJobDescription.
+* Let the market data tell you what matters. Do not force the analysis into pre-defined tool categories or assumptions.
+* Do not include percentages unless they are directly counted from the provided rows.
+Prefer “frequent,” “recurring,” “less common,” or “minority pattern” when exact counts are not calculated.
+* Only list a tool, platform, language, or system if it appears explicitly in the provided job fields. Do not include implied tools.
+* Do not include career advice, hiring advice, stakeholder recommendations, or personal positioning. End with “Open Questions and Data Limitations.”
+* Separate strong recurring signals from weak, ambiguous, or noisy signals.
+* Treat GTM Engineering as an emerging and potentially fragmented role category.
+* When possible, cite example companies or job titles for each pattern, but do not overfit to a single company.
+
+Produce a market intelligence report with these sections:
+
+1. Executive Summary
+
+* What does this sample suggest GTM Engineering means in the current market?
+* Is the role category coherent, fragmented, emerging, or noisy?
+
+2. Role Archetypes
+
+* What major archetypes appear in the sample?
+* For each archetype, describe common titles, responsibilities, tools/systems, business outcomes, and representative companies.
+
+3. Common Responsibilities
+
+* What work do these roles actually own?
+* Which responsibilities appear central versus peripheral?
+* Where do roles differ meaningfully from each other?
+
+4. Tools, Systems, and Technical Signals
+
+* What tools, platforms, systems, languages, or technical capabilities appear repeatedly?
+* Which seem central to the role category?
+* Which seem role-specific, company-specific, or merely adjacent?
+
+5. Business Outcomes
+
+* What business outcomes are these roles expected to influence?
+* Look for themes such as pipeline, conversion, sales productivity, attribution, customer lifecycle, expansion, churn, workflow efficiency, data quality, or AI adoption.
+
+6. Experience and Background Patterns
+
+* What experience levels, prior functions, or backgrounds appear most common?
+* Note patterns across RevOps, Sales Ops, Marketing Ops, Growth, Product, Data, Engineering, or other functions.
+
+7. Company and Market Patterns
+
+* What kinds of companies appear to be hiring for these roles?
+* Note patterns in company type, stage, sector, location, remote/hybrid expectations, or market context when visible.
+
+8. Market Definition
+
+* Based on the postings, propose a neutral working definition of “GTM Engineering.”
+* Also explain where the definition remains ambiguous or contested.
+
+9. Open Questions and Data Limitations
+
+* What can this sample not tell us?
+* What additional data would improve confidence?
+
+Return the analysis in clear markdown with headings and bullets.
+
+CLASSIFIED GTME-RELEVANT JOBS:
+{{ JSON.stringify($json.jobs, null, 2) }}
