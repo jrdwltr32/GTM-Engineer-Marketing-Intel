@@ -1,0 +1,130 @@
+## Purpose
+
+This prompt compares strong-fit and weak-fit GTM Engineering job examples and creates a reusable classification rubric.
+
+## Input
+
+- BoB jobs
+- WoW jobs
+
+## Output
+
+- GTME market-fit rubric
+- Bucket definitions
+- Positive and negative signals
+- Scoring rules
+
+## Prompt
+
+You are converting a BoB vs WoW GTM Engineer labor-market analysis into an actionable classifier rubric.
+
+The rubric will be used by another LLM node to classify one LinkedIn job posting at a time.
+
+Use only the analysis provided below. Do not invent new categories, tools, or rules.
+
+Create a compact rubric that includes:
+1. Core definition of a GTM Engineer
+2. Bucket definitions
+3. Positive classification signals
+4. Negative / false-positive signals
+5. Ambiguous signals and how to resolve them
+6. Scoring rules
+7. Output schema for the classifier
+
+Return valid JSON only. Do not include markdown.
+
+BoB vs WoW Analysis:
+{{ $json.text }}
+
+Return this exact JSON structure:
+
+{
+  "rubricName": "GTME Market Fit Classifier",
+  "rubricVersion": "v1",
+  "coreDefinition": "",
+  "falsePositiveDefinition": "",
+  "buckets": [
+    {
+      "bucket": "Core GTM Engineer",
+      "definition": "",
+      "includeWhen": [],
+      "excludeWhen": []
+    },
+    {
+      "bucket": "Strong Adjacent - GTM Systems",
+      "definition": "",
+      "includeWhen": [],
+      "excludeWhen": []
+    },
+    {
+      "bucket": "Adjacent - GTM Ops/Strategy",
+      "definition": "",
+      "includeWhen": [],
+      "excludeWhen": []
+    },
+    {
+      "bucket": "Adjacent - Customer-Facing Technical",
+      "definition": "",
+      "includeWhen": [],
+      "excludeWhen": []
+    },
+    {
+      "bucket": "Emerging / Slight Stretch",
+      "definition": "",
+      "includeWhen": [],
+      "excludeWhen": []
+    },
+    {
+      "bucket": "Weak Match",
+      "definition": "",
+      "includeWhen": [],
+      "excludeWhen": []
+    },
+    {
+      "bucket": "Exclude",
+      "definition": "",
+      "includeWhen": [],
+      "excludeWhen": []
+    }
+  ],
+  "positiveSignals": {
+    "titleSignals": [],
+    "responsibilitySignals": [],
+    "toolSignals": [],
+    "businessOutcomeSignals": [],
+    "operatingContextSignals": []
+  },
+  "negativeSignals": {
+    "titleSignals": [],
+    "responsibilitySignals": [],
+    "toolSignals": [],
+    "operatingContextSignals": []
+  },
+  "ambiguousSignals": [
+    {
+      "signal": "",
+      "positiveInterpretation": "",
+      "negativeInterpretation": "",
+      "resolutionRule": ""
+    }
+  ],
+  "scoringRules": {
+    "positiveRules": [],
+    "negativeRules": [],
+    "thresholds": []
+  },
+  "classifierOutputSchema": {
+    "jobId": "",
+    "jobTitle": "",
+    "companyName": "",
+    "marketFitBucket": "",
+    "marketFitScore": 0,
+    "classificationConfidence": "High | Medium | Low",
+    "isGTMERelevant": true,
+    "recommendedUse": "include_market_intel | review_manually | exclude",
+    "classificationReason": "",
+    "positiveSignals": [],
+    "negativeSignals": [],
+    "evidenceQuotes": []
+  }
+}
