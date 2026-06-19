@@ -1,5 +1,3 @@
-# GTM-Engineer-Marketing-Intel
-
 # GTM Engineering Market Intelligence Workflow
 
 A lightweight market-intelligence workflow built with **n8n**, **Apify**, **Google Sheets**, and **LLMs** to analyze how the market is defining **GTM Engineering**.
