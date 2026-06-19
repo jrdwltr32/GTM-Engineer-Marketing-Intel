@@ -1,0 +1,89 @@
+## Purpose
+
+This prompt classifies one scraped LinkedIn job posting against the active GTM Engineering market-fit rubric.
+
+The goal of this step is to determine whether a job should be included in the GTM Engineering market-intelligence sample.
+
+This prompt is intentionally constrained. It does not perform market analysis, trend analysis, or career advice. It only evaluates one job at a time and assigns a fit category.
+
+## Input
+
+The prompt receives two inputs:
+
+1. **Active GTME classification rubric**
+   - Pulled from the `GTME_Rubric` sheet
+   - Defines the market-fit categories, positive signals, negative signals, ambiguous signals, and scoring rules
+
+2. **One scraped job posting**
+   - `jobId`
+   - `jobTitle`
+   - `companyName`
+   - `location`
+   - `sector`
+   - `workType`
+   - `salaryInfo`
+   - `jobDescription`
+
+## Output
+
+The prompt returns structured JSON with the classification result for that job.
+
+Expected output fields:
+
+- `jobId`
+- `jobTitle`
+- `companyName`
+- `marketFitBucket`
+- `marketFitScore`
+- `classificationConfidence`
+- `isGTMERelevant`
+- `recommendedUse`
+- `classificationReason`
+- `positiveSignals`
+- `negativeSignals`
+- `evidenceQuotes`
+
+The key output field for downstream processing is `recommendedUse`.
+
+Jobs marked `include_market_intel` are passed into the market-intelligence branch.
+
+## Prompt
+You are classifying one scraped LinkedIn job using the latest GTME rubric.
+
+Use only:
+1. the rubric below
+2. the job posting below
+
+Do not invent facts.
+Evidence quotes must be exact phrases from the jobDescription.
+Return valid JSON only.
+
+LATEST GTME RUBRIC:{{ $('Get GTME rubric').first().json.rubricJson }}
+
+JOB TO CLASSIFY:
+{
+  "jobId": "{{ $json.jobId }}",
+  "jobTitle": "{{ $json.jobTitle }}",
+  "companyName": "{{ $json.companyName }}",
+  "location": "{{ $json.location }}",
+  "sector": "{{ $json.sector }}",
+  "workType": "{{ $json.workType }}",
+  "salaryInfo": {{ JSON.stringify($json.salaryInfo || []) }},
+  "jobDescription": {{ JSON.stringify($json.jobDescription || "") }}
+}
+
+Return this exact JSON structure:
+{
+  "jobId": "",
+  "jobTitle": "",
+  "companyName": "",
+  "marketFitBucket": "",
+  "marketFitScore": 0,
+  "classificationConfidence": "High | Medium | Low",
+  "isGTMERelevant": true,
+  "recommendedUse": "include_market_intel | review_manually | exclude",
+  "classificationReason": "",
+  "positiveSignals": [],
+  "negativeSignals": [],
+  "evidenceQuotes": []
+}
